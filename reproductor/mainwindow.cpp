@@ -46,9 +46,10 @@ MainWindow::MainWindow(QWidget *parent) :
     //Inicializamos los menús
     mainMenu_ = new QMenuBar(this);
 
-    mnuArchivo_ = new QMenu(tr("&Archivo"), this);
-    mnuVer_     = new QMenu(tr("&Ver"), this);
-    mnuAyuda_   = new QMenu(tr("A&yuda"), this);
+    mnuArchivo_   = new QMenu(tr("&Archivo"), this);
+    mnuRecientes_ = new QMenu(tr("&Recientes"), this);
+    mnuVer_       = new QMenu(tr("&Ver"), this);
+    mnuAyuda_     = new QMenu(tr("A&yuda"), this);
 
     mainMenu_->addMenu(mnuArchivo_);
     mainMenu_->addMenu(mnuVer_);
@@ -56,11 +57,13 @@ MainWindow::MainWindow(QWidget *parent) :
 
     actArchivoAbrir_ = new QAction(tr("&Abrir"), this);
     actFull_         = new QAction(tr("&Pantalla Completa"), this);
+    actMetaDatos_    = new QAction(tr("&Metadatos"), this);
     actAyudaAcerca_  = new QAction(tr("&Acerca de"), this);
-    actEscPress_     = new QAction(this);
 
     mnuArchivo_->addAction(actArchivoAbrir_);
+    mnuArchivo_->addMenu(mnuRecientes_);
     mnuVer_->addAction(actFull_);
+    mnuVer_->addAction(actMetaDatos_);
     mnuAyuda_->addAction(actAyudaAcerca_);
 
     setMenuBar(mainMenu_);
@@ -89,24 +92,9 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(actArchivoAbrir_, SIGNAL(triggered()),             this,         SLOT(onOpen()));
     connect(actAyudaAcerca_,  SIGNAL(triggered()),             this,         SLOT(onAcercaDe()));
     connect(actFull_,         SIGNAL(triggered()),             this,         SLOT(onFull()));
-    connect(actEscPress_,     SIGNAL(keyPressEvent()),         this,         SLOT(onRestablecer()));
 
     //Recientes
-    QFile archivo("recientes.txt");
-    archivo.open(QIODevice::ReadOnly);
-    QAction* tmpAction;
-    while(!archivo.atEnd()) {
-        QString linea = archivo.readLine();
-        tmpAction = new QAction(linea.section('/', -1), this);
-        tmpAction->setData(linea);
-        mnuArchivo_->addAction(tmpAction);
-
-        recientes_.push_back(tmpAction);
-
-        connect(tmpAction, SIGNAL(triggered()), this, SLOT(onRecienteAbrir()));
-    }
-
-    archivo.close();
+    menuRecientes();
 }
 
 MainWindow::~MainWindow()
@@ -117,22 +105,31 @@ MainWindow::~MainWindow()
 void MainWindow::onOpen()
 {
     //Show file open dialog
-    QString fileName = QFileDialog::getOpenFileName(this,
-                                            tr("Abrir archivo"));
+    QString fileName = QFileDialog::getOpenFileName(this, tr("Abrir archivo"));
     if (fileName != "") {
         mediaPlayer_->setMedia(QUrl::fromLocalFile(fileName));
+
+        //Recientes
+        QFile archivo("recientes.txt");
+        archivo.open(QIODevice::WriteOnly | QIODevice::Truncate);
+        QAction* accion = new QAction(fileName, this);
+        accion->setData(fileName);
+        fileName = fileName + "\n";
+        archivo.write(fileName.toStdString().c_str(), fileName.length());
+        for(int i = 0; i < recientes_.size() && i < 9; i++) {
+            fileName = recientes_[i]->data().toString() + "\n";
+            archivo.write(fileName.toStdString().c_str(), fileName.length());
+        }
+        archivo.close();
+        recientes_.prepend(accion);
+        menuRecientes();
     }
+}
 
-    //Recientes
-    QFile archivo("recientes.txt");
-    archivo.open(QIODevice::WriteOnly | QIODevice::Truncate);
-    fileName += "\n";
-    archivo.writeData(fileName.toStdString().c_str(), fileName.length());
-    for(int i = 0; i < recientes_.size(); ++i) {
-
-    }
-
-    archivo.close();
+void MainWindow::onRecienteAbrir()
+{
+    QAction* sender = (QAction*)QObject::sender();
+    mediaPlayer_->setMedia(QUrl::fromLocalFile(sender->data().toString()));
 }
 
 void MainWindow::onSeek()
@@ -165,14 +162,22 @@ void MainWindow::onFull()
     videoWidget_->setFullScreen(true);
 }
 
-void MainWindow::onRestablecer()
+void MainWindow::menuRecientes()
 {
-    videoWidget_->setFullScreen(false);
-}
+    mnuRecientes_->clear();
+    QFile archivo("recientes.txt");
+    archivo.open(QIODevice::ReadOnly);
+    QAction* tmpAction;
+    while(!archivo.atEnd()) {
+        QString linea = archivo.readLine();
+        linea = linea.left(linea.length() - 1);
+        tmpAction = new QAction(linea.section('/', -1), this);
+        tmpAction->setData(linea);
+        mnuRecientes_->addAction(tmpAction);
 
-void MainWindow::onRecienteAbrir()
-{
-    QAction* sender = (QAction*)QObject::sender();
+        recientes_.push_back(tmpAction);
 
-    sender->data();
+        connect(tmpAction, SIGNAL(triggered()), this, SLOT(onRecienteAbrir()));
+    }
+    archivo.close();
 }

@@ -38,15 +38,18 @@ private:
     QToolButton*  btnStop_;
     QMenuBar*     mainMenu_;
     QMenu*        mnuArchivo_;
+    QMenu*        mnuRecientes_;
     QMenu*        mnuVer_;
     QMenu*        mnuAyuda_;
     QAction*      actArchivoAbrir_;
     QAction*      actFull_;
+    QAction*      actMetaDatos_;
     QAction*      actAyudaAcerca_;
-    QAction*      actEscPress_;
     QDialog*      dialogo_;
     QHBoxLayout*  lytDialogo_;
     QList<QAction*> recientes_;
+
+    void menuRecientes(void);
 
 private slots:
     void onOpen();
@@ -56,7 +59,6 @@ private slots:
     void onVolumeChanged(int volume);
     void onAcercaDe();
     void onFull();
-    void onRestablecer();
     void onRecienteAbrir();
 
 };
